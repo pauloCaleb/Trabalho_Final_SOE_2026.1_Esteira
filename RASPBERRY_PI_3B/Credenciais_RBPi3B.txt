@@ -1,0 +1,4 @@
+IP publico: 100.116.108.99
+IP local: 192.168.1.45
+user: caleb
+pswrd: 1234
