@@ -1,0 +1,22 @@
+[
+  {
+    "nome_peca": "CAIXA_INDO_PARA_A",
+    "destino": "0xDA"
+  },
+  {
+    "nome_peca": "CAIXA_INDO_PARA_B",
+    "destino": "0xDB"
+  },
+  {
+    "nome_peca": "CAIXA_PEQUENA_COM_DESTINO_A",
+    "destino": "0xDA"
+  },
+  {
+    "nome_peca": "CAIXA_PEQUENA_COM_DESTINO_B",
+    "destino": "0xDB"
+  },
+  {
+    "nome_peca": "CAIXA_ERRO",
+    "destino": "0x3D"
+  }
+]
