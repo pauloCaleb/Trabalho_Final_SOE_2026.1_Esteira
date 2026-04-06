@@ -1,7 +1,7 @@
 # 🏭 Gerador de QR Codes — Esteira Separadora de Itens
 
 > **Projeto Final SOE 2026.1**  
-> Autores: **Felipe e Caleb**  
+> Autores: **Felipe De Castro e Paulo Caleb**  
 > Descrição: Sistema de geração automática de QR codes para identificação e rastreamento de peças em uma esteira separadora de itens.
 
 ---
@@ -137,7 +137,7 @@ source .venv/bin/activate
 #### Passo 3 — Atualizar o pip
 
 ```bash
-pip install --upgrade pip
+python.exe -m pip install --upgrade pip
 ```
 
 #### Passo 4 — Instalar as dependências
@@ -308,11 +308,11 @@ Destino: <destino_hex>
 Projeto final SOE 2026.1 - Felipe e Caleb - esteira separadora de itens
 ```
 
-**Exemplo real** (para `Engrenagem_A1` com destino `0x1A`):
+**Exemplo real** (para `CAIXAS DE JÓIAS - Uberlândia` com destino `0xDA`):
 
 ```
-Nome da Peça: Engrenagem_A1
-Destino: 0X1A
+Nome da Peça: CAIXAS DE JÓIAS - Uberlândia
+Destino: 0XDA
 Projeto final SOE 2026.1 - Felipe e Caleb - esteira separadora de itens
 ```
 
