@@ -149,3 +149,13 @@ Suporte plástico que une os dois suportes do flash e forma a estrutura da câme
 **Quantidade:** 1 unidade
 
 Ponto de fixação da câmera. Deve ser colado sobre os suportes que formam a região de leitura de forma que a câmera fique alinhada com o sensor laser onde o objeto é posicionado sobre o tapete da esteira.
+
+## Peças de fixação do Raspberry Pi 3b
+
+*Autor: Nila - Usuário do MakerWorld*
+
+O case de fixação do RBPi3B utilizado foi obtido através da plataforma Open Source *MakerWorld*, que é um site onde usuários da comunidade de impressão 3D compartilham seus p´roprios desenhos de forma aberta sem fim comercial.
+
+A case foi desenhada inicialmente para o RBPi4 e após impressa foi modificada para abrir os alojamentos das portas USB e HDMI.
+
+O case original pode ser encontrado no seguinte link <https://makerworld.com/pt/models/1500557-case-for-raspberry-pi-4-with-40mm-fan?from=search#profileId-1569716>
