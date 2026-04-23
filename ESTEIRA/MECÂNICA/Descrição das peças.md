@@ -150,7 +150,7 @@ Suporte plástico que une os dois suportes do flash e forma a estrutura da câme
 
 Ponto de fixação da câmera. Deve ser colado sobre os suportes que formam a região de leitura de forma que a câmera fique alinhada com o sensor laser onde o objeto é posicionado sobre o tapete da esteira.
 
-## Peças de fixação do Raspberry Pi 3b
+## Case de fixação do Raspberry Pi 3b
 
 *Autor: Nila - Usuário do MakerWorld*
 
