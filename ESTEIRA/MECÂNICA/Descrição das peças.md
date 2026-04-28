@@ -152,7 +152,7 @@ Ponto de fixação da câmera. Deve ser colado sobre os suportes que formam a re
 
 ## Case de fixação do Raspberry Pi 3b
 
-*Autor: Nila - Usuário do MakerWorld*
+*Autor: Nilo - Usuário do MakerWorld*
 
 O case de fixação do RBPi3B utilizado foi obtido através da plataforma Open Source *MakerWorld*, que é um site onde usuários da comunidade de impressão 3D compartilham seus p´roprios desenhos de forma aberta sem fim comercial.
 
