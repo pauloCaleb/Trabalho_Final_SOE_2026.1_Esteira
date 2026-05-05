@@ -20,7 +20,8 @@ Autores: Paulo Caleb Fernandes da Silva · Felipe de Castro
 11. [Máquina de Estados Finitos (FSM)](#11-máquina-de-estados-finitos-fsm)
 12. [Conexão com o STM32G070](#12-conexão-com-o-stm32g070)
 13. [Solução de Problemas](#13-solução-de-problemas)
-14. [Estrutura de Arquivos](#14-estrutura-de-arquivos)
+14. [Changelog](#14-changelog)
+15. [Estrutura de Arquivos](#15-estrutura-de-arquivos)
 
 ---
 
@@ -34,7 +35,10 @@ Este software é o painel de controle gráfico (GUI) da esteira separadora desen
   - Flash de iluminação
   - Cancela (servo motor)
   - Motor de passo (direção, passos, modo loop)
-- Visualizar o log completo de comunicação TX/RX com timestamp
+- Visualizar estado dos 4 sensores laser em tempo real (modo Debug)
+- Visualizar o log completo de comunicação TX/RX com timestamp e exportar para .txt
+- Reconectar automaticamente em caso de queda de comunicação
+- Resetar o STM32 por software via comando UART
 - Alternar entre tema escuro e claro
 
 O software **não** realiza processamento de imagem nem tomada de decisão sobre rotas — essa lógica reside no firmware do STM32. A GUI apenas comanda e observa.
@@ -59,14 +63,15 @@ O software **não** realiza processamento de imagem nem tomada de decisão sobre
 └─────────────────┬───────────────────┘
                   │
 ┌─────────────────┴───────────────────┐
-│         STM32G070                   │
+│         STM32G070  — FW v3.0        │
 │                                     │
-│   · Firmware v2.1                   │
 │   · FSM (5 estados)                 │
 │   · 4 sensores laser (TIM3 DMA)     │
 │   · Motor de passo A4988 (TIM6)     │
 │   · Servo motor ES08MA (TIM16)      │
 │   · Flash LED (GPIO)                │
+│   · Telemetria de sensores (0x55)   │
+│   · Reset por software (NVIC)       │
 │   · USART2 · PA2(TX) · PA3(RX)     │
 └─────────────────────────────────────┘
 ```
@@ -79,7 +84,7 @@ O software **não** realiza processamento de imagem nem tomada de decisão sobre
 | Componente | Especificação |
 |---|---|
 | SBC | Raspberry Pi 3B (Raspbian Bookworm ou Bullseye) |
-| Microcontrolador | STM32G070 com firmware v2.1 gravado |
+| Microcontrolador | STM32G070 com firmware v3.0 gravado |
 | Conexão atual | Cabo USB (ST-Link / USB-Serial) |
 | Conexão futura | UART direta: GPIO14 (TX) ↔ PA3 (RX) / GPIO15 (RX) ↔ PA2 (TX) + GND comum |
 
@@ -89,8 +94,6 @@ O software **não** realiza processamento de imagem nem tomada de decisão sobre
 | Python | 3.9+ | Incluso no Raspbian |
 | tkinter | qualquer | Incluso no Python |
 | pyserial | 3.5+ | `pip install pyserial` |
-
-> **Nota:** O tkinter já vem incluso no Python do Raspbian. Caso não esteja disponível: `sudo apt install python3-tk`
 
 ---
 
@@ -109,21 +112,13 @@ O script executa automaticamente:
 3. Cria o ambiente virtual `venv/` dentro da pasta do projeto
 4. Instala `pyserial` dentro do venv
 5. Verifica se `python3-tk` está presente no sistema
-6. Confirma que a instalação foi concluída
+6. Adiciona o usuário ao grupo `dialout` (acesso à porta serial)
 
 ### Windows — `install.bat`
 
 ```bat
 install.bat
 ```
-
-O script executa automaticamente:
-1. Verifica se Python 3 está disponível no PATH
-2. Cria o ambiente virtual `venv\` na pasta do projeto
-3. Instala `pyserial` dentro do venv
-4. Confirma que a instalação foi concluída
-
-> **Nota Windows:** O uso em Windows destina-se a testes com adaptador USB-Serial. A implantação definitiva é no Raspberry Pi.
 
 ---
 
@@ -132,17 +127,8 @@ O script executa automaticamente:
 ### Linux / Raspberry Pi
 
 ```bash
-# Ativar o ambiente virtual
 source venv/bin/activate
-
-# Executar a GUI
 python3 esteira_control.py
-```
-
-Ou, se preferir sem ativar o venv manualmente:
-
-```bash
-venv/bin/python3 esteira_control.py
 ```
 
 ### Windows
@@ -156,97 +142,70 @@ python esteira_control.py
 
 ## 6. Interface — Painéis e Controles
 
-A janela é dividida em duas colunas e seis painéis:
-
 ### Barra Superior — Conexão Serial
-Localizada no topo da janela. Contém:
 
 | Controle | Função |
 |---|---|
-| **PORTA** | Seletor da porta serial detectada (`/dev/ttyACM0`, `/dev/ttyUSB0`, etc.) |
-| **BAUD** | Taxa de transmissão (padrão: `115200`) |
-| **⟳** | Atualiza a lista de portas disponíveis |
+| **PORTA** | Seletor da porta serial detectada |
+| **BAUD** | Taxa de transmissão (padrão: 115200) |
+| **⟳** | Atualiza lista de portas |
 | **CONECTAR / DESCONECTAR** | Abre ou fecha a conexão serial |
-| **●** | Indicador de status: cinza = desconectado, verde = conectado, vermelho = erro |
+| **◆** | Indicador de atividade serial — pisca (azul) a cada frame TX ou RX |
+| **●** | Status da conexão: cinza = desconectado, verde = conectado, vermelho = erro |
 | **HANDSHAKE** | Envia `SYS_RDY (0x10)` para iniciar o handshake com o STM32 |
+| **SW RESET** | Envia `SW_RESET (0x33)` para reset por software do STM32 (pede confirmação) |
 
 ### Coluna Esquerda
 
 **Painel STATUS DO HARDWARE**
-Exibe o estado atual dos componentes, atualizado automaticamente a cada eco recebido do STM32:
 
-| Campo | Valores possíveis |
+| Campo | Valores |
 |---|---|
-| MODO | `FSM` (azul) / `DEBUG` (laranja) |
+| MODO | `FSM` (azul) / `DEBUG` (laranja) — sincronizado via mensagem do firmware |
 | CANCELA | `ABERTA` (verde) / `FECHADA` (vermelho) |
 | MOTOR | `GIRANDO` (verde) / `LIVRE` / `PARADO` (cinza) |
 | DIREÇÃO | `FRENTE` / `TRÁS` |
 | FLASH | `ON` (amarelo) / `OFF` (cinza) |
 
 **Painel MÁQUINA DE ESTADOS**
-Exibe o nome do estado atual em destaque e um pipeline visual dos 5 estados. O estado ativo é iluminado com a cor correspondente; os demais ficam apagados.
-
-```
-[IDLE] ▸ [OBJ DET] ▸ [WAIT CLSS] ▸ [ROUTE A] ▸ [ROUTE B]
-```
+Pipeline visual dos 5 estados com o estado ativo iluminado. Atualizado pelas mensagens espontâneas do firmware.
 
 **Painel COMANDOS FSM**
 
-| Botão | Comando enviado | Descrição |
+| Botão | Comando | Descrição |
 |---|---|---|
-| → ROTA A | `0xAA 0xDA` | Instrui o STM32 a encaminhar o objeto para a Rota A |
-| → ROTA B | `0xAA 0xDB` | Instrui o STM32 a encaminhar o objeto para a Rota B |
-| ⇄ TOGGLE DEBUG | `0xAA 0xDD` | Alterna entre modo FSM e modo Debug |
+| → ROTA A | `0xAA 0xDA` | Encaminha objeto para Rota A |
+| → ROTA B | `0xAA 0xDB` | Encaminha objeto para Rota B |
+| ⇄ TOGGLE DEBUG | `0xAA 0xDD` | Alterna FSM ↔ Debug |
+
+**Painel SENSORES LASER**
+Exibe 4 indicadores retangulares (S1–S4). Ativo apenas no **modo Debug** — o firmware envia a telemetria `SENS_STATUS_MSG (0x55)` somente quando o modo Debug está ativo e o status dos sensores muda.
+
+| Estado | Visual |
+|---|---|
+| Feixe livre | Caixa cinza / texto "LIVRE" |
+| Objeto detectado | Caixa verde (escuro: vermelha) / texto "OBJETO" |
 
 ### Coluna Direita
 
 **Painel CONTROLE ASSÍNCRONO (MODO DEBUG)**
-Disponível em qualquer modo, mas com efeito real somente quando o firmware está em `OP_MODE_DEBUG`.
-
-*Flash:*
-| Botão | Comando | Descrição |
-|---|---|---|
-| ON | `0xAA 0xE1` | Liga a luminária |
-| OFF | `0xAA 0xD1` | Desliga a luminária |
-
-*Cancela:*
-| Botão | Comando | Descrição |
-|---|---|---|
-| ABRIR | `0xAA 0xE2` | Abre a cancela (servo → openAngle = 45°) |
-| FECHAR | `0xAA 0xD2` | Fecha a cancela (servo → closeAngle = 0°) |
-
-*Motor:*
-| Botão | Comando | Descrição |
-|---|---|---|
-| ENGAJAR | `0xAA 0xE3` | Habilita o driver A4988 e ativa a geração de pulsos |
-| LIVRE | `0xAA 0xD3` | Desabilita o driver A4988 (eixo livre) |
-| ◀ FRENTE | `0xAA 0xE4` | Define direção para frente |
-| TRÁS ▶ | `0xAA 0xD4` | Define direção para trás |
-
-*Controle de Passos:*
-
-- **Nº DE PASSOS:** Campo numérico (1–255) que define o valor de `targetStepps` no STM32.
-- **MODO LOOP:** Quando marcado, o software reenvia o comando de passos continuamente a cada 60 ms (≈ 16 comandos/s), mantendo o motor em rotação contínua enquanto o loop estiver ativo.
-- **▶ ENVIAR PASSOS:** Envia um único `0xAA 0xE5 [steps]` ou inicia o loop.
-- **■ PARAR LOOP:** Interrompe o loop de envio.
+Controles de flash, cancela, motor e passos. Idêntico à versão anterior. O modo loop envia `STPR_TGT_STPS` continuamente a 16 cmd/s (60 ms/ciclo).
 
 **Painel LOG DE COMUNICAÇÃO**
-Exibe todas as mensagens trocadas com timestamp `HH:MM:SS.ms`:
 
 | Cor | Tipo | Significado |
 |---|---|---|
-| Azul | `TX` | Frame enviado pelo RPi para o STM32 |
+| Azul | `TX` | Frame enviado pelo RPi |
 | Verde | `RX` | Frame recebido do STM32 |
-| Amarelo | `···` | Mensagem de sistema (conexão, handshake, erros) |
+| Amarelo | `···` | Mensagem de sistema |
+| Vermelho | `RX` | CMD_ERR recebido |
 
-Formato de cada linha:
-```
-[HH:MM:SS.mmm] TX  0xE1  LIGHT_EN
-[HH:MM:SS.mmm] RX  0xE1  LIGHT_EN (eco)  [OK]
-```
+- **ERR: N** — contador de erros de comunicação. Reseta ao limpar o log.
+- **EXPORTAR LOG** — salva o log atual em arquivo `.txt` com timestamp no nome.
+- **LIMPAR LOG** — apaga o log e zera o contador de erros.
 
 ### Botão de Tema
-O botão ☀/◑ no canto superior direito alterna entre **tema escuro** (padrão) e **tema claro** em tempo real, sem reiniciar a aplicação.
+O botão ☀/◑ no canto superior direito alterna entre tema escuro e claro em tempo real. O tema é aplicado completamente desde a inicialização — sem artefatos visuais na abertura do programa.
 
 ---
 
@@ -265,222 +224,220 @@ Flow ctrl : Nenhum
 
 **RPi → STM32 (TX):**
 ```
-Frame padrão (2 bytes):  [0xAA] [CMD]
-Frame com dado (3 bytes): [0xAA] [0xE5] [DATA]
+Frame padrão (2 bytes):   [0xAA] [CMD]
+Frame com dado (3 bytes):  [0xAA] [0xE5] [steps]
 ```
-O byte `0xAA` é o marcador de início de frame (`START_FRAME`). Todo comando deve ser precedido por ele.
 
 **STM32 → RPi (RX):**
 ```
-Confirmação positiva (2 bytes): [0x90] [ECO_DO_CMD]
-Erro de reconhecimento (1 byte): [0x91]
+Confirmação (2 bytes):    [0x90] [ECO_DO_CMD]
+Telemetria (3 bytes):     [0x90] [0x55] [STATUS_BYTE]
+Erro (1 byte):            [0x91]
 ```
-O STM32 sempre responde com `0x90` seguido do byte do comando recebido como confirmação (`CMD_OK + eco`), ou com `0x91` isolado em caso de falha.
 
 ### Handshake de inicialização
 ```
-RPi  →  STM32 : [0xAA][0x10]          (SYS_RDY)
-STM32 →  RPi  : [0x90][0x01]          (CMD_OK + SYS_INIT)
+RPi   → STM32 : [0xAA][0x10]          SYS_RDY
+STM32 → RPi   : [0x90][0x01]          CMD_OK + SYS_INIT
+STM32 → RPi   : [0x90][0x11]          CMD_OK + MODE_FSM  ← informa modo inicial
 ```
-O STM32 só responde ao handshake depois que todos os 4 sensores laser estiverem operacionais (frequência = 200 Hz detectada em todos os canais).
 
-### Fluxo da FSM (modo normal)
+### Reset por software
 ```
-STM32 →  RPi  : [0x90][0xA0]   OBJ_DETECTED     — objeto detectado no sensor 1
-STM32 →  RPi  : [0x90][0xC0]   CLSS_REQUEST     — aguardando classificação (sensor 2 atingido)
-RPi   →  STM32: [0xAA][0xDA]   ROUTE_A          — ou [0xAA][0xDB] para Rota B
-STM32 →  RPi  : [0x90][0xDA]   ROUTE_A (eco)    — confirmação
-STM32 →  RPi  : [0x90][0xFA]   ROUTE_A_FWD      — objeto encaminhado
-STM32 →  RPi  : [0x90][0xBA]   ROUTE_A_OK       — entrega confirmada (sensor 3 atingido)
+RPi   → STM32 : [0xAA][0x33]          SW_RESET
+STM32 → RPi   : [0x90][0x33]          CMD_OK + eco  (antes de resetar)
+[STM32 executa NVIC_SystemReset()]
+[STM32 reinicia e aguarda novo handshake]
 ```
+
+### Telemetria de sensores (STATUS_BYTE)
+```
+STM32 → RPi   : [0x90][0x55][STATUS_BYTE]
+
+STATUS_BYTE:
+  bit 0 → SENS1_flag  (1 = objeto / 0 = livre)
+  bit 1 → SENS2_flag
+  bit 2 → SENS3_flag
+  bit 3 → SENS4_flag
+  bits 4-7 → reservados (0)
+
+Exemplos:
+  0x00 → todos livres
+  0x01 → S1 com objeto
+  0x05 → S1 e S3 com objeto (0b00000101)
+  0x0F → todos com objeto
+```
+
+Enviada **somente no modo Debug** e **somente quando o STATUS_BYTE mudar** em relação ao último valor transmitido.
 
 ---
 
 ## 8. Tabela de Bytes do Protocolo
 
-### Bytes fixos de frame
-| Byte | Nome | Direção | Descrição |
+### Bytes de frame
+| Byte | Nome | Dir | Descrição |
 |---|---|---|---|
-| `0xAA` | `START_FRAME` | TX | Marcador de início de todo frame TX |
+| `0xAA` | `START_FRAME` | TX | Marcador de início |
 | `0x90` | `CMD_OK` | RX | Confirmação positiva |
 | `0x91` | `CMD_ERR` | RX | Erro de reconhecimento |
 
 ### Handshake
-| Byte | Nome | Direção | Descrição |
+| Byte | Nome | Dir | Descrição |
 |---|---|---|---|
-| `0x10` | `SYS_RDY` | TX | Inicia o handshake (enviado pelo RPi) |
-| `0x01` | `SYS_INIT` | RX | Completa o handshake (enviado pelo STM32) |
+| `0x10` | `SYS_RDY` | TX | Inicia handshake |
+| `0x01` | `SYS_INIT` | RX | Completa handshake |
 
-### Mensagens espontâneas da FSM (STM32 → RPi)
-| Byte | Nome | Descrição |
-|---|---|---|
-| `0xA0` | `OBJ_DETECTED` | Objeto detectado pelo sensor 1 |
-| `0xC0` | `CLSS_REQUEST` | Sensor 2 atingido — aguardando rota |
-| `0xFA` | `ROUTE_A_FWD` | Encaminhamento para Rota A iniciado |
-| `0xFB` | `ROUTE_B_FWD` | Encaminhamento para Rota B iniciado |
-| `0xBA` | `ROUTE_A_OK` | Entrega confirmada na Rota A |
-| `0xBB` | `ROUTE_B_OK` | Entrega confirmada na Rota B |
+### Modo de operação (espontâneas — v3.0)
+| Byte | Nome | Dir | Descrição |
+|---|---|---|---|
+| `0x11` | `MODE_FSM` | RX | STM32 confirmou modo FSM |
+| `0x22` | `MODE_DEBUG` | RX | STM32 confirmou modo Debug |
 
-### Comandos de roteamento FSM (RPi → STM32)
-| Byte | Nome | Descrição |
-|---|---|---|
-| `0xDA` | `ROUTE_A` | Define destino como Rota A |
-| `0xDB` | `ROUTE_B` | Define destino como Rota B |
+### Telemetria (espontânea — v3.0)
+| Byte | Nome | Dir | Descrição |
+|---|---|---|---|
+| `0x55` | `SENS_STATUS` | RX | STATUS_BYTE dos 4 sensores (frame de 3 bytes) |
 
-### Comandos assíncronos (RPi → STM32)
-| Byte | Nome | Descrição |
-|---|---|---|
-| `0xE1` | `LIGHT_EN` | Liga a luminária |
-| `0xD1` | `LIGHT_DISABLE` | Desliga a luminária |
-| `0xE2` | `GATE_OPEN` | Abre a cancela (servo → 45°) |
-| `0xD2` | `GATE_CLOSE` | Fecha a cancela (servo → 0°) |
-| `0xE3` | `STPR_EN` | Habilita o motor de passo |
-| `0xD3` | `STPR_DISABLE` | Desabilita o motor de passo |
-| `0xE4` | `SET_STPR_FORWARD` | Define direção: frente |
-| `0xD4` | `SET_STPR_BACKWARD` | Define direção: trás |
-| `0xE5` | `SET_STPR_TGT_STPS` | Define número de passos (frame de 3 bytes: `[0xAA][0xE5][steps]`) |
-| `0xDD` | `DEBUG_MODE_TOGGLE` | Alterna entre modo FSM e modo Debug |
+### Reset por software (v3.0)
+| Byte | Nome | Dir | Descrição |
+|---|---|---|---|
+| `0x33` | `SW_RESET` | TX | Solicita reset por software |
+
+### FSM — Roteamento
+| Byte | Nome | Dir | Descrição |
+|---|---|---|---|
+| `0xDA` | `ROUTE_A` | TX | Define destino Rota A |
+| `0xDB` | `ROUTE_B` | TX | Define destino Rota B |
+| `0xA0` | `OBJ_DETECTED` | RX | Objeto no sensor 1 |
+| `0xC0` | `CLSS_REQUEST` | RX | Aguardando classificação |
+| `0xFA` | `ROUTE_A_FWD` | RX | Encaminhamento Rota A |
+| `0xFB` | `ROUTE_B_FWD` | RX | Encaminhamento Rota B |
+| `0xBA` | `ROUTE_A_OK` | RX | Entrega confirmada Rota A |
+| `0xBB` | `ROUTE_B_OK` | RX | Entrega confirmada Rota B |
+
+### Comandos assíncronos
+| Byte | Nome | Dir | Descrição |
+|---|---|---|---|
+| `0xE1` | `LIGHT_EN` | TX | Liga luminária |
+| `0xD1` | `LIGHT_DIS` | TX | Desliga luminária |
+| `0xE2` | `GATE_OPEN` | TX | Abre cancela |
+| `0xD2` | `GATE_CLOSE` | TX | Fecha cancela |
+| `0xE3` | `STPR_EN` | TX | Habilita motor de passo |
+| `0xD3` | `STPR_DIS` | TX | Desabilita motor de passo |
+| `0xE4` | `STPR_FWD` | TX | Direção: frente |
+| `0xD4` | `STPR_BWD` | TX | Direção: trás |
+| `0xE5` | `STPR_TGT` | TX | Define passos (frame 3 bytes) |
+| `0xDD` | `DBG_TOGGLE` | TX | Alterna FSM ↔ Debug |
 
 ---
 
 ## 9. Arquitetura Interna do Software
 
 ### Classe `SerialManager`
-Gerencia a porta serial com duas threads independentes:
 
-**Thread RX (`serial-rx`):**
-- Lê bytes da porta em loop com timeout de 20 ms
-- Implementa um parser de estados (`IDLE` → `WAIT_PAYLOAD`) para montar os frames de 2 bytes recebidos do STM32
-- Notifica a GUI via callbacks quando um frame completo chega
-- Usa `port_lock` apenas para acessar o objeto `serial.Serial`, não bloqueia TX
+**Thread TX (`serial-tx`):** drena `queue.Queue` sem disputar lock com RX — enfileirar é sempre instantâneo independente do estado do barramento.
 
-**Thread TX (`serial-tx`):**
-- Drena uma `queue.Queue` em loop com timeout de 500 ms
-- Escreve na porta assim que um frame é enfileirado
-- O enfileiramento pelo método `send_frame()` é instantâneo (não bloqueia a thread principal/GUI)
-- Sem disputa de lock com a thread RX → latência uniforme e mínima para todos os comandos
-
-**Por que isso importa:**
-Na versão anterior, TX e RX compartilhavam um único `threading.Lock`. Quando a thread RX estava dentro do bloco `with self._lock`, qualquer chamada de `send_frame()` na thread principal ficava bloqueada esperando. Com a arquitetura de fila, o envio é sempre assíncrono — o frame vai para a fila em microssegundos e a thread TX o despacha na primeira oportunidade.
+**Thread RX (`serial-rx`):** parser de estados com suporte a frames de 2 e 3 bytes:
+```
+IDLE → WAIT_CMD → (payload normal: notifica GUI)
+                → WAIT_DATA → (telemetria 0x55: notifica GUI com data)
+```
 
 ### Classe `EsteiraApp`
-Herda de `tk.Tk`. Organizada nos seguintes grupos de métodos:
 
-| Grupo | Métodos | Responsabilidade |
-|---|---|---|
-| Tema | `_toggle_theme`, `_recolor_all`, `_tw` | Troca de paleta em tempo real |
-| Construção de UI | `_build_*` | Criação dos widgets na inicialização |
-| Callbacks seriais | `_on_serial_event`, `_handle_rx` | Atualização da GUI ao receber dados |
-| Ações | `_send`, `_toggle_connect`, `_start_loop` | Envio de comandos e controle de estado |
-| Log | `_log`, `_log_sys`, `_clear_log` | Escrita colorida no widget Text |
+**Inicialização do tema:** o dicionário `C` é populado antes de qualquer widget ser criado e `_recolor_all()` é chamado explicitamente logo após `_build_ui()`. Isso garante que o tema seja consistente desde o primeiro frame renderizado, eliminando os artefatos visuais da versão anterior.
 
-### Sistema de Recoloração de Tema
-Cada widget que precisa mudar de cor ao trocar de tema é registrado via `_tw(widget, prop=color_key)`. O dicionário `C` é substituído pelo tema novo, e `_recolor_all()` percorre a lista aplicando `C[color_key]` a cada propriedade. Isso evita recriar a janela e mantém o estado da sessão intacto durante a troca.
+**Sincronização de modo:** o campo MODO na GUI só é atualizado ao receber `MODE_FSM_MSG (0x11)` ou `MODE_DEBUG_MSG (0x22)` do firmware — nunca por toggle local. Isso torna a exibição do modo imune a dessincronismos por perda de frame ou reset do STM32.
+
+**Reconexão automática:** ao detectar queda de conexão (`_on_disconnected`), uma thread separada tenta reconectar à última porta/baud usada a cada `RECONNECT_DELAY` (3 s). A reconexão é cancelada se o usuário clicar em DESCONECTAR ou fechar a janela.
+
+**Indicador de atividade:** `_flash_activity()` acende o LED ◆ por `ACTIVITY_ON_MS` (120 ms) a cada frame TX ou RX, usando `after()` para cancelar acendimentos anteriores e evitar acúmulo de callbacks.
+
+**Error counter:** incrementado a cada `CMD_ERR (0x91)` recebido. Exibido em vermelho ao lado do log. Reseta junto com o log.
+
+**Exportação de log:** cada linha escrita no widget Text é também armazenada em `_log_lines`. O botão EXPORTAR abre um diálogo de salvamento e escreve o buffer com cabeçalho (data, total de erros).
 
 ---
 
 ## 10. Modos de Operação
 
 ### Modo FSM (`OP_MODE_FSM`)
-Modo normal de operação. O firmware executa a lógica da esteira autonomamente, avançando pelos estados conforme os sensores são ativados. A GUI acompanha passivamente via mensagens espontâneas e só intervém ao enviar ROTA A ou ROTA B quando o firmware solicita classificação.
+Modo normal. O firmware executa a lógica da esteira autonomamente. A GUI acompanha via mensagens espontâneas e intervém apenas ao enviar ROTA A ou ROTA B. A telemetria de sensores **não** é enviada neste modo para manter o barramento limpo para o algoritmo de controle automático externo.
 
 ### Modo Debug (`OP_MODE_DEBUG`)
-Ativado pelo comando `DEBUG_TOGGLE (0xDD)`. A FSM do firmware é pausada e apenas os comandos assíncronos são processados. Permite:
-- Testar cada atuador individualmente
-- Calibrar ângulos da cancela
-- Verificar resposta do motor de passo
-- Validar sensores de forma isolada
-
-Para sair do modo Debug e retornar à FSM, envie `DEBUG_TOGGLE (0xDD)` novamente. O firmware reinicia do estado `STATE_IDLE`.
+Ativado pelo comando `DEBUG_TOGGLE (0xDD)`. A FSM é pausada, todos os comandos assíncronos são processados e a telemetria de sensores (`SENS_STATUS_MSG`) passa a ser enviada sempre que o status mudar. O firmware confirma a troca de modo com `MODE_DEBUG_MSG (0x22)` ou `MODE_FSM_MSG (0x11)`.
 
 ---
 
 ## 11. Máquina de Estados Finitos (FSM)
 
-A FSM reside no firmware do STM32. A GUI a observa e reflete seu estado:
-
 ```
-                    SENS1 ativo
-    ┌─────────────────────────────────────────────────────────────────┐
-    ▼                                                                 │
- STATE_IDLE ──SENS1──▶ STATE_OBJECT_DETECTED ──SENS2──▶ STATE_WAIT_CLASSIFICATION
-    ▲                                                          │
-    │                                               ROUTE_A_RECV│ROUTE_B_RECV
-    │                                                    ▼           ▼
-    │                                              STATE_ROUTE_A  STATE_ROUTE_B
-    │                                                    │           │
-    └─────────────────────────SENS3 / SENS4──────────────┘           │
-    └───────────────────────────────────────────────────────────────-┘
+    ┌──────────────────────────────────────────────────────────────┐
+    ▼                                                              │
+ STATE_IDLE ──SENS1──▶ STATE_OBJ_DETECTED ──SENS2──▶ STATE_WAIT_CLSS
+    ▲                                                     │
+    │                                          ROUTE_A │ ROUTE_B
+    │                                              ▼         ▼
+    │                                        STATE_ROUTE_A  STATE_ROUTE_B
+    │                                              │              │
+    └──────────────────────────SENS3 / SENS4───────┘──────────────┘
 ```
 
-| Estado | ID | Cor na GUI | Condição de entrada |
+| Estado | ID | Cor | Condição |
 |---|---|---|---|
 | `STATE_IDLE` | 0 | Cinza | Inicialização ou entrega concluída |
 | `STATE_OBJECT_DETECTED` | 1 | Amarelo | Sensor 1 interrompido |
 | `STATE_WAIT_CLASSIFICATION` | 2 | Azul | Sensor 2 interrompido |
-| `STATE_ROUTE_A` | 3 | Verde | Recebido `ROUTE_A (0xDA)` |
-| `STATE_ROUTE_B` | 4 | Laranja | Recebido `ROUTE_B (0xDB)` |
+| `STATE_ROUTE_A` | 3 | Verde | Recebido `ROUTE_A` |
+| `STATE_ROUTE_B` | 4 | Laranja | Recebido `ROUTE_B` |
 
 ---
 
 ## 12. Conexão com o STM32G070
 
 ### Conexão atual — USB (ST-Link)
-O cabo USB conectado à placa Nucleo/Discovery cria uma porta serial virtual:
-- Linux: `/dev/ttyACM0` ou `/dev/ttyUSB0`
-- Windows: `COM3`, `COM4`, etc.
-
-Selecione a porta no combobox da GUI e clique em CONECTAR.
+Porta virtual criada pelo ST-Link: `/dev/ttyACM0` ou `/dev/ttyUSB0` no Linux, `COM_N` no Windows.
 
 ### Conexão futura — UART direta (GPIO)
-Para substituir o USB pela UART direta entre RPi 3B e STM32:
 
-**Pinagem:**
-| RPi 3B | Pino físico | STM32G070 | Observação |
-|---|---|---|---|
-| GPIO14 (TXD) | Pino 8 | PA3 (RX da USART2) | Cruzado |
-| GPIO15 (RXD) | Pino 10 | PA2 (TX da USART2) | Cruzado |
-| GND | Pino 6 | GND | Obrigatório |
+| RPi 3B | Pino físico | STM32G070 |
+|---|---|---|
+| GPIO14 (TXD) | 8 | PA3 (RX da USART2) |
+| GPIO15 (RXD) | 10 | PA2 (TX da USART2) |
+| GND | 6 | GND |
 
-Ambos operam em 3,3 V lógico — não é necessário conversor de nível, mas o GND comum é obrigatório caso sejam alimentados separadamente.
+Ambos operam em 3,3 V — sem conversor de nível necessário.
 
-**Habilitando a UART no Raspbian:**
+**Habilitando UART no Raspbian:**
 ```bash
 sudo raspi-config
-# Interface Options → Serial Port
-# "Would you like a login shell...?" → No
-# "Would you like the serial port hardware...?" → Yes
+# Interface Options → Serial Port → shell: No → hardware: Yes
 sudo reboot
 ```
-
-Após o reboot a porta aparecerá como `/dev/ttyS0` ou `/dev/ttyAMA0`.
 
 ---
 
 ## 13. Solução de Problemas
 
-**A porta serial não aparece no seletor**
-- Clique em ⟳ para atualizar a lista
-- Verifique se o cabo USB está conectado: `ls /dev/tty*`
-- Adicione seu usuário ao grupo `dialout`: `sudo usermod -aG dialout $USER` (requer logout)
-
-**"Permission denied" ao conectar**
+**Porta não aparece no seletor**
 ```bash
-sudo usermod -aG dialout $USER
-# Faça logout e login novamente
+ls /dev/tty*      # identifica a porta
+sudo usermod -aG dialout $USER   # adiciona ao grupo (requer logout)
 ```
 
 **Handshake não completa**
-- Verifique se os 4 sensores laser estão com o feixe livre (o STM32 aguarda 200 Hz em todos os canais antes de aceitar o handshake)
-- Confirme que o firmware v2.1 está gravado no STM32
-- O LED de debug do STM32 pisca lento (500 ms) quando os sensores estão OK e aguarda o `SYS_RDY`; pisca rápido (100 ms) se algum sensor não estiver operacional
+- LED do STM32 pisca lento (500 ms) = sensores OK, aguardando `SYS_RDY`
+- LED pisca rápido (100 ms) = algum sensor não detectou portadora (200 Hz)
+- Verifique se o firmware v3.0 está gravado (v2.x não responde `MODE_FSM_MSG`)
 
-**Comandos sem resposta no modo Debug**
-- Verifique se o modo Debug está ativo (painel STATUS deve mostrar `DEBUG` em laranja)
-- Envie `⇄ TOGGLE DEBUG` para alternar o modo e confirme via log
+**MODO mostra valor errado após reset do STM32**
+- Com firmware v3.0, o handshake sempre envia `MODE_FSM_MSG` → a GUI se autorrecalibra
+- Se usar firmware v2.x, o MODO pode dessincronizar — atualize o firmware
 
 **`ModuleNotFoundError: No module named 'serial'`**
-- O ambiente virtual não está ativo. Execute: `source venv/bin/activate`
+```bash
+source venv/bin/activate
+```
 
 **`No module named 'tkinter'`**
 ```bash
@@ -489,25 +446,49 @@ sudo apt install python3-tk
 
 ---
 
-## 14. Estrutura de Arquivos
+## 14. Changelog
+
+### v3 (GUI) / v3.0 (Firmware) — atual
+- **[FIX] Tema na inicialização:** `_recolor_all()` chamado explicitamente após `_build_ui()` — sem artefatos visuais na abertura
+- **[NEW] Sincronização de modo:** campo MODO atualizado via `MODE_FSM_MSG (0x11)` e `MODE_DEBUG_MSG (0x22)` — sem risco de dessincronismo
+- **[NEW] Reconexão automática:** detecta queda e tenta reconectar a cada 3 s
+- **[NEW] Indicador de atividade serial:** LED ◆ pisca a cada frame TX/RX
+- **[NEW] Exportação de log:** botão salva log em `.txt` com cabeçalho e timestamp
+- **[NEW] Error counter:** conta `CMD_ERR` recebidos; reseta com o log
+- **[NEW] Painel de sensores:** 4 indicadores S1–S4 atualizados pela telemetria `SENS_STATUS_MSG (0x55)`
+- **[NEW] SW RESET:** botão envia `0x33` para `NVIC_SystemReset()` no STM32
+- **[FW] `sendFrame3()`:** nova função para frames TX de 3 bytes
+- **[FW] `sendTelemetryData()`:** telemetria de sensores compactada, só no modo Debug, só quando muda
+- **[FW] `MODE_FSM_MSG / MODE_DEBUG_MSG`:** anunciados após toggle de modo e no handshake
+- **[FW] `SW_RESET_MSG`:** processado em `handleModeToggle()` antes do toggle normal
+
+### v2 (GUI) / v2.1 (Firmware)
+- Fila TX dedicada (threads TX e RX independentes)
+- Loop de passos a 60 ms (≈16 cmd/s)
+- Tema claro/escuro alternável em tempo real
+- Parser UART com suporte a frame de 3 bytes (`SET_STPR_TGT_STPS`)
+- `sendFrame()` padronizado no firmware
+
+### v1 (GUI) / v1.0 (Firmware)
+- Versão inicial com tkinter e pyserial
+- FSM de 5 estados, 4 sensores laser, servo, motor de passo
+- Comunicação UART com handshake
+
+---
+
+## 15. Estrutura de Arquivos
 
 ```
 Graphical_User_Interface_DBG/
-├── esteira_control.py   # Aplicação principal (GUI + SerialManager)
-├── install.sh           # Script de instalação para Linux / Raspberry Pi
-├── install.bat          # Script de instalação para Windows
+├── esteira_control.py   # Aplicação principal (GUI v3 + SerialManager)
+├── install.sh           # Instalação Linux / Raspberry Pi
+├── install.bat          # Instalação Windows
 ├── README.md            # Este documento
 └── venv/                # Ambiente virtual Python (criado pelo install)
-    ├── bin/             # Executáveis (Linux)
-    │   ├── python3
-    │   └── pip
-    └── lib/
-        └── python3.x/
-            └── site-packages/
-                └── serial/   # pyserial instalado aqui
 ```
 
 ---
 
 *Projeto desenvolvido para a disciplina de Sistemas Operacionais Embarcados — 2026.1*
 *Hardware: STM32G070 @ 64 MHz · Raspberry Pi 3B · Driver A4988 · Servo ES08MA*
+*Firmware v3.0 · GUI v3*
