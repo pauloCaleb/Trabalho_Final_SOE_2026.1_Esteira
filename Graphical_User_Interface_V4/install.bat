@@ -3,10 +3,13 @@ REM ============================================================================
 REM  install.bat — Esteira Separadora · Sistema de Controle v3.0
 REM  Windows 10 / 11 (para testes com adaptador USB-Serial)
 REM
+REM  CORRECAO: usa --without-pip na criacao do venv para compatibilidade
+REM  com Python instalado via Scoop (evita bug do ensurepip).
+REM
 REM  O que este script faz:
 REM    1. Verifica se Python 3 esta disponivel no PATH
-REM    2. Cria o ambiente virtual Python em .\venv
-REM    3. Atualiza o pip dentro do venv
+REM    2. Cria o ambiente virtual Python em .\venv  (--without-pip)
+REM    3. Instala pip dentro do venv via ensurepip  (local, sem rede)
 REM    4. Instala pyserial, opencv-python e Pillow dentro do venv
 REM    5. Confirma a instalacao
 REM
@@ -17,6 +20,10 @@ REM ============================================================================
 
 setlocal enabledelayedexpansion
 title Esteira Separadora - Instalacao v3.0
+
+set "VENV_DIR=%~dp0venv"
+set "PYTHON_EXE=%~dp0venv\Scripts\python.exe"
+set "PIP_EXE=%~dp0venv\Scripts\pip.exe"
 
 echo.
 echo ============================================================
@@ -41,14 +48,14 @@ if %errorlevel% neq 0 (
 for /f "tokens=*" %%v in ('python --version 2^>^&1') do set PY_VER=%%v
 echo   OK: %PY_VER% encontrado.
 
-REM ── Passo 2: Criar venv ───────────────────────────────────────────────────────
+REM ── Passo 2: Criar venv (sem pip -- compativel com Scoop) ────────────────────
 echo.
-echo [2/5] Criando ambiente virtual em: %~dp0venv
-if exist "%~dp0venv" (
+echo [2/5] Criando ambiente virtual em: %VENV_DIR%
+if exist "%VENV_DIR%" (
     echo   Aviso: pasta venv ja existe. Recriando...
-    rmdir /s /q "%~dp0venv"
+    rmdir /s /q "%VENV_DIR%"
 )
-python -m venv "%~dp0venv"
+python -m venv --without-pip "%VENV_DIR%"
 if %errorlevel% neq 0 (
     echo.
     echo   ERRO: Falha ao criar o ambiente virtual.
@@ -58,11 +65,18 @@ if %errorlevel% neq 0 (
 )
 echo   OK: Ambiente virtual criado.
 
-REM ── Passo 3: Atualizar pip ────────────────────────────────────────────────────
+REM ── Passo 3: Instalar pip via ensurepip ──────────────────────────────────────
 echo.
-echo [3/5] Atualizando pip dentro do venv...
-"%~dp0venv\Scripts\python.exe" -m pip install --quiet --upgrade pip
-echo   OK: pip atualizado.
+echo [3/5] Instalando pip dentro do venv...
+"%PYTHON_EXE%" -m ensurepip --upgrade >nul 2>&1
+"%PYTHON_EXE%" -m pip install --quiet --upgrade pip
+if %errorlevel% neq 0 (
+    echo.
+    echo   ERRO: Falha ao instalar/atualizar pip.
+    pause
+    exit /b 1
+)
+echo   OK: pip instalado e atualizado.
 
 REM ── Passo 4: Instalar dependencias ───────────────────────────────────────────
 echo.
@@ -70,17 +84,17 @@ echo [4/5] Instalando dependencias (pyserial, opencv-python, Pillow)...
 echo   Isso pode levar alguns minutos na primeira vez...
 echo.
 
-"%~dp0venv\Scripts\pip.exe" install pyserial
+"%PIP_EXE%" install pyserial
 if %errorlevel% neq 0 (
     echo.
     echo   ERRO: Falha ao instalar pyserial.
     pause
     exit /b 1
 )
-for /f "tokens=2" %%v in ('"%~dp0venv\Scripts\pip.exe" show pyserial ^| findstr Version') do set SERIAL_VER=%%v
+for /f "tokens=2" %%v in ('"%PIP_EXE%" show pyserial ^| findstr Version') do set SERIAL_VER=%%v
 echo   OK: pyserial %SERIAL_VER% instalado.
 
-"%~dp0venv\Scripts\pip.exe" install opencv-python
+"%PIP_EXE%" install opencv-python
 if %errorlevel% neq 0 (
     echo.
     echo   AVISO: Falha ao instalar opencv-python.
@@ -88,18 +102,18 @@ if %errorlevel% neq 0 (
     echo   A GUI funcionara normalmente apenas sem a camera.
     echo.
 ) else (
-    for /f "tokens=2" %%v in ('"%~dp0venv\Scripts\pip.exe" show opencv-python ^| findstr Version') do set CV2_VER=%%v
+    for /f "tokens=2" %%v in ('"%PIP_EXE%" show opencv-python ^| findstr Version') do set CV2_VER=%%v
     echo   OK: opencv-python %CV2_VER% instalado.
 )
 
-"%~dp0venv\Scripts\pip.exe" install Pillow
+"%PIP_EXE%" install Pillow
 if %errorlevel% neq 0 (
     echo.
     echo   AVISO: Falha ao instalar Pillow.
     echo   O preview da camera nao estara disponivel.
     echo.
 ) else (
-    for /f "tokens=2" %%v in ('"%~dp0venv\Scripts\pip.exe" show Pillow ^| findstr Version') do set PIL_VER=%%v
+    for /f "tokens=2" %%v in ('"%PIP_EXE%" show Pillow ^| findstr Version') do set PIL_VER=%%v
     echo   OK: Pillow %PIL_VER% instalado.
 )
 

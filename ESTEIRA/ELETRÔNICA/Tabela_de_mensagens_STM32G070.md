@@ -1,7 +1,7 @@
-# Tabela de Mensagens — Firmware STM32G070 v2.1
+# Tabela de Mensagens — Firmware STM32G070 v3
 > **Protocolo de quadro:**
 > - **RX** (Raspberry Pi → STM32): `[0xAA][CMD]` ou `[0xAA][CMD][DATA]`
-> - **TX** (STM32 → Raspberry Pi): `[0x90][PAYLOAD]` (sucesso) ou `[0x91]` (erro)
+> - **TX** (STM32 → Raspberry Pi): `[0x90][PAYLOAD]` (sucesso), `[0x90][CMD][DATA]` (telemetria), ou `[0x91]` (erro)
 
 ---
 
@@ -13,7 +13,10 @@
 | `CMD_OK_MSG` | `0x90` | TX | Estrutura | Byte de status positivo. Enviado como primeiro byte de qualquer resposta bem-sucedida, sempre seguido de um payload. |
 | `CMD_ERR_MSG` | `0x91` | TX | Estrutura | Byte de status negativo. Enviado sozinho (1 byte) quando o comando recebido não é reconhecido. |
 | `SYS_RDY_MSG` | `0x10` | RX | Handshake | Mensagem enviada pelo Raspberry Pi para iniciar o handshake. Só é aceita após todos os quatro sensores estarem operando na frequência esperada (200 Hz). |
-| `SYS_INIT_MSG` | `0x01` | TX | Handshake | Payload de resposta ao handshake. Indica que o STM32 está inicializado e pronto para operar. Enviado no quadro `[0x90][0x01]`. |
+| `SYS_INIT_MSG` | `0x01` | TX | Handshake | Payload de resposta ao handshake. Indica que o STM32 está inicializado. Enviado no quadro `[0x90][0x01]`, sempre seguido de `[0x90][0x11]` informando o modo inicial. |
+| `MODE_FSM_MSG` | `0x11` | TX | Modo | Payload que informa que o modo ativo é `OP_MODE_FSM`. Enviado após handshake e após cada transição de modo. |
+| `MODE_DEBUG_MSG` | `0x22` | TX | Modo | Payload que informa que o modo ativo é `OP_MODE_DEBUG`. Enviado após cada transição de modo. |
+| `SW_RESET_MSG` | `0x33` | RX | Controle | Comando de reset por software. Processado com prioridade máxima (antes do toggle de modo e da FSM). O STM32 envia `[0x90][0x33]` e executa `NVIC_SystemReset()` após ~50 ms. |
 | `ROUTE_A_RECEIVE_MSG` | `0xDA` | RX | FSM | Comando enviado pelo Raspberry Pi ordenando o encaminhamento do objeto para a Rota A. Válido apenas no estado `STATE_WAIT_CLASSIFICATION`. |
 | `ROUTE_B_RECEIVE_MSG` | `0xDB` | RX | FSM | Comando enviado pelo Raspberry Pi ordenando o encaminhamento do objeto para a Rota B. Válido apenas no estado `STATE_WAIT_CLASSIFICATION`. |
 | `OBJ_DETECTED_MSG` | `0xA0` | TX | FSM | Notificação espontânea de que o Sensor 1 detectou um objeto na entrada da esteira (transição `IDLE → OBJECT_DETECTED`). |
@@ -22,7 +25,8 @@
 | `ROUTE_B_FWRDNG_MSG` | `0xFB` | TX | FSM | Confirmação de que o objeto está sendo encaminhado para a Rota B. Enviado ao receber `0xDB`. |
 | `ROUTE_A_SCCSS_DLVRY_MSG` | `0xBA` | TX | FSM | Notificação de entrega bem-sucedida na Rota A. Disparado quando o Sensor 3 detecta a passagem do objeto. FSM retorna a `STATE_IDLE`. |
 | `ROUTE_B_SCCSS_DLVRY_MSG` | `0xBB` | TX | FSM | Notificação de entrega bem-sucedida na Rota B. Disparado quando o Sensor 4 detecta a passagem do objeto. FSM retorna a `STATE_IDLE`. |
-| `DEBUG_MODE_TOGGLE_MSG` | `0xDD` | RX | Modo | Alterna entre `OP_MODE_FSM` e `OP_MODE_DEBUG`. Processado com prioridade máxima (antes da FSM e dos comandos assíncronos) em qualquer modo de operação. |
+| `DEBUG_MODE_TOGGLE_MSG` | `0xDD` | RX | Modo | Alterna entre `OP_MODE_FSM` e `OP_MODE_DEBUG`. Processado com prioridade máxima (após `SW_RESET_MSG`, antes da FSM) em qualquer modo de operação. |
+| `SENS_STATUS_MSG` | `0x55` | TX | Telemetria | Mensagem espontânea de telemetria dos sensores. Enviada apenas em `OP_MODE_DEBUG`, somente quando o STATUS_BYTE muda. Frame de 3 bytes: `[0x90][0x55][STATUS_BYTE]`. Bits 0–3 do STATUS_BYTE indicam o estado de SENS1–SENS4 respectivamente (1 = objeto detectado, 0 = feixe livre). Bits 4–7 reservados (0). |
 | `LIGHT_EN_MSG` | `0xE1` | RX | Assíncrono (Debug) | Liga o flash/luminária (`FLASH_PIN` → HIGH). Válido apenas em `OP_MODE_DEBUG`. |
 | `LIGHT_DISABLE_MSG` | `0xD1` | RX | Assíncrono (Debug) | Desliga o flash/luminária (`FLASH_PIN` → LOW). Válido apenas em `OP_MODE_DEBUG`. |
 | `GATE_OPEN_MSG` | `0xE2` | RX | Assíncrono (Debug) | Abre a cancela movendo o servo para `openAngle` (45°). Válido apenas em `OP_MODE_DEBUG`. |
@@ -31,17 +35,18 @@
 | `STPR_DISABLE_MSG` | `0xD3` | RX | Assíncrono (Debug) | Desativa o motor de passo com eixo livre (driver A4988 em SLEEP). Válido apenas em `OP_MODE_DEBUG`. |
 | `SET_STPR_FORWARD_MSG` | `0xE4` | RX | Assíncrono (Debug) | Define o sentido de rotação do motor de passo como **frente** (`stepperDirInst = 0`). Válido apenas em `OP_MODE_DEBUG`. |
 | `SET_STPR_BACKWARD_MSG` | `0xD4` | RX | Assíncrono (Debug) | Define o sentido de rotação do motor de passo como **trás** (`stepperDirInst = 1`). Válido apenas em `OP_MODE_DEBUG`. |
-| `SET_STPR_TGT_STPS_MSG` | `0xE5` | RX | Assíncrono (Debug) | Inicia um quadro de 3 bytes. O byte `DATA` subsequente define a quantidade de passos alvo (`targetStepps`). É o único comando que gera um frame de 3 bytes (`[0xAA][0xE5][DATA]`). Válido apenas em `OP_MODE_DEBUG`. |
+| `SET_STPR_TGT_STPS_MSG` | `0xE5` | RX | Assíncrono (Debug) | Inicia um quadro de 3 bytes. O byte `DATA` subsequente define a quantidade de passos alvo (`targetStepps`). É o único frame RX de 3 bytes (`[0xAA][0xE5][DATA]`). Válido apenas em `OP_MODE_DEBUG`. |
 
 ---
 
 ## Tabela 2 — Fluxo de Mensagens por Evento
 
 > **Legenda de quadros completos:**
-> - Quadro TX de sucesso: `[0x90][PAYLOAD]`
-> - Quadro TX de erro: `[0x91]`
-> - Quadro RX padrão: `[0xAA][CMD]`
-> - Quadro RX com dado: `[0xAA][0xE5][DATA]`
+> - Quadro TX de sucesso (2 bytes): `[0x90][PAYLOAD]`
+> - Quadro TX de telemetria (3 bytes): `[0x90][0x55][STATUS_BYTE]`
+> - Quadro TX de erro (1 byte): `[0x91]`
+> - Quadro RX padrão (2 bytes): `[0xAA][CMD]`
+> - Quadro RX com dado (3 bytes): `[0xAA][0xE5][DATA]`
 
 ---
 
@@ -52,7 +57,8 @@
 | # | Evento | Agente | Quadro Completo | Bytes (hex) | Descrição |
 |---|---|---|---|---|---|
 | 1 | Sensores prontos + RPi inicia handshake | RPi → STM32 | `[START][SYS_RDY]` | `AA 10` | Raspberry Pi sinaliza que está pronto. STM32 só aceita após todos os sensores medirem 200 Hz. |
-| 2 | STM32 confirma inicialização | STM32 → RPi | `[CMD_OK][SYS_INIT]` | `90 01` | STM32 confirma sistema inicializado. Loop de boot encerra. FSM inicia em `STATE_IDLE`. |
+| 2 | STM32 confirma inicialização | STM32 → RPi | `[CMD_OK][SYS_INIT]` | `90 01` | STM32 confirma sistema inicializado. |
+| 3 | STM32 informa modo inicial | STM32 → RPi | `[CMD_OK][MODE_FSM]` | `90 11` | STM32 informa que inicia em `OP_MODE_FSM`. Loop de boot encerra. FSM inicia em `STATE_IDLE`. |
 
 ---
 
@@ -85,15 +91,34 @@
 | # | Evento | Agente | Quadro Completo | Bytes (hex) | Descrição |
 |---|---|---|---|---|---|
 | 1 | RPi solicita entrada em modo debug | RPi → STM32 | `[START][DEBUG_TOGGLE]` | `AA DD` | Pode ser enviado em qualquer ponto, em qualquer estado da FSM. |
-| 2 | STM32 confirma e entra em `OP_MODE_DEBUG` | STM32 → RPi | `[CMD_OK][DEBUG_TOGGLE]` | `90 DD` | Motor é travado (`stepperStopEngaged`), flash apagado. LED pisca 6× rápido. |
-| 3 | RPi solicita retorno ao modo FSM | RPi → STM32 | `[START][DEBUG_TOGGLE]` | `AA DD` | Mesmo comando, reenviado para alternar de volta. |
-| 4 | STM32 confirma e retorna a `OP_MODE_FSM` | STM32 → RPi | `[CMD_OK][DEBUG_TOGGLE]` | `90 DD` | FSM reinicia em `STATE_IDLE`. LED acende 400 ms e apaga. |
+| 2 | STM32 ecoa o comando recebido | STM32 → RPi | `[CMD_OK][DEBUG_TOGGLE]` | `90 DD` | Confirmação imediata do recebimento do frame. |
+| 3 | STM32 informa modo ativo | STM32 → RPi | `[CMD_OK][MODE_DEBUG]` | `90 22` | Motor travado (`stepperStopEngaged`), flash apagado. LED pisca 6× rápido. |
+| 4 | RPi solicita retorno ao modo FSM | RPi → STM32 | `[START][DEBUG_TOGGLE]` | `AA DD` | Mesmo comando, reenviado para alternar de volta. |
+| 5 | STM32 ecoa o comando recebido | STM32 → RPi | `[CMD_OK][DEBUG_TOGGLE]` | `90 DD` | Confirmação imediata do recebimento do frame. |
+| 6 | STM32 informa modo ativo | STM32 → RPi | `[CMD_OK][MODE_FSM]` | `90 11` | FSM reinicia em `STATE_IDLE`. LED acende 400 ms e apaga. |
+
+---
+
+#### Reset por Software (qualquer estado, qualquer modo)
+
+| # | Evento | Agente | Quadro Completo | Bytes (hex) | Descrição |
+|---|---|---|---|---|---|
+| 1 | RPi solicita reset | RPi → STM32 | `[START][SW_RESET]` | `AA 33` | Processado com prioridade máxima, antes do toggle de modo e da FSM. |
+| 2 | STM32 confirma e reinicia | STM32 → RPi | `[CMD_OK][SW_RESET]` | `90 33` | STM32 envia confirmação, aguarda ~50 ms para o frame sair pelo TX e executa `NVIC_SystemReset()`. |
 
 ---
 
 ### Modo Debug — `OP_MODE_DEBUG`
 
-> Em modo debug a FSM fica suspensa. O STM32 responde exclusivamente a comandos assíncronos. Todos os quadros abaixo são iniciados pelo Raspberry Pi.
+> Em modo debug a FSM fica suspensa. O STM32 responde exclusivamente a comandos assíncronos e envia telemetria de sensores espontaneamente.
+
+#### Telemetria de Sensores (espontânea)
+
+| # | Evento | Agente | Quadro Completo | Bytes (hex) | Descrição |
+|---|---|---|---|---|---|
+| 1 | STATUS_BYTE dos sensores muda | STM32 → RPi | `[CMD_OK][SENS_STATUS][STATUS_BYTE]` | `90 55 NN` | Enviado apenas quando o valor do STATUS_BYTE muda em relação ao anterior. `NN`: bit 0 = SENS1, bit 1 = SENS2, bit 2 = SENS3, bit 3 = SENS4 (1 = objeto detectado, 0 = feixe livre). Bits 4–7 reservados (0). |
+
+#### Comandos Assíncronos
 
 | # | Comando enviado | Agente | Quadro Completo | Bytes (hex) | Ação executada pelo STM32 | Resposta STM32 | Bytes (hex) |
 |---|---|---|---|---|---|---|---|
