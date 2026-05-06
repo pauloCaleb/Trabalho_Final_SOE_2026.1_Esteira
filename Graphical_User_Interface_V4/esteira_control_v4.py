@@ -33,19 +33,19 @@ try:
     import serial
     import serial.tools.list_ports
     SERIAL_AVAILABLE = True
-except ImportError:
+except Exception:
     SERIAL_AVAILABLE = False
 
 try:
     import cv2
     CV2_AVAILABLE = True
-except ImportError:
+except Exception:
     CV2_AVAILABLE = False
 
 try:
     from PIL import Image, ImageTk
     PIL_AVAILABLE = True
-except ImportError:
+except Exception:
     PIL_AVAILABLE = False
 
 QR_AVAILABLE = CV2_AVAILABLE and PIL_AVAILABLE
