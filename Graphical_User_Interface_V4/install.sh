@@ -8,7 +8,9 @@
 #  armhf (RPi 3B):
 #    - numpy via apt (python3-numpy), pois o numpy do PyPI para ARM32
 #      requer libopenblas/libatlas e quebra sem elas
-#    - opencv e Pillow via pip com --no-deps para nao sobrescrever o numpy
+#    - opencv com --no-deps para nao sobrescrever o numpy do sistema
+#    - Pillow com --ignore-installed para garantir versao nova no venv,
+#      ignorando o Pillow 9.4.0 do sistema que nao tem ImageTk completo
 #    - venv com --system-site-packages para enxergar o numpy do sistema
 #    - libatlas-base-dev fornece libcblas.so.3, exigida pelo opencv no armhf
 #
@@ -55,7 +57,6 @@ echo ""
 echo -e "${BOLD}[2/7] Instalando dependências de sistema via apt...${NC}"
 
 if [ "$ARCH" = "armv7l" ]; then
-    # ── RPi 3B (armhf) ────────────────────────────────────────────────────────
     # python3-numpy   → numpy compilado para armhf sem libopenblas
     # libatlas-base-dev → fornece libcblas.so.3, exigida pelo opencv no armhf
     # libgl1 + libglib2.0-0 → runtime do OpenCV
@@ -67,8 +68,7 @@ if [ "$ARCH" = "armv7l" ]; then
         libglib2.0-0 \
         libatlas-base-dev
 else
-    # ── x86_64 (Ubuntu, Debian, etc.) ─────────────────────────────────────────
-    # Apenas o mínimo necessário — numpy e opencv vêm limpos via pip
+    # x86_64: apenas o mínimo — numpy e opencv vêm limpos via pip
     sudo apt install -y \
         python3-full \
         python3-tk \
@@ -110,18 +110,26 @@ if [ "$ARCH" = "armv7l" ]; then
     # --no-deps evita que o pip tente puxar numpy por cima do sistema
     echo -e "  → opencv-python-headless  (numpy via apt)"
     "$PIP" install --quiet --no-deps opencv-python-headless
+    echo -e "${GREEN}  ✓ opencv-python-headless $("$PIP" show opencv-python-headless | awk '/^Version/{print $2}')${NC}"
+
+    # --ignore-installed garante que o Pillow 12.x fique dentro do venv,
+    # sobrepondo o Pillow 9.4.0 do sistema que nao possui ImageTk completo
+    echo -e "  → Pillow"
+    "$PIP" install --quiet --ignore-installed Pillow
 else
     # x86_64: instala numpy + opencv normalmente via pip
     echo -e "  → numpy"
     "$PIP" install --quiet numpy
     echo -e "${GREEN}  ✓ numpy $("$PIP" show numpy | awk '/^Version/{print $2}')${NC}"
+
     echo -e "  → opencv-python-headless"
     "$PIP" install --quiet opencv-python-headless
-fi
-echo -e "${GREEN}  ✓ opencv-python-headless $("$PIP" show opencv-python-headless | awk '/^Version/{print $2}')${NC}"
+    echo -e "${GREEN}  ✓ opencv-python-headless $("$PIP" show opencv-python-headless | awk '/^Version/{print $2}')${NC}"
 
-echo -e "  → Pillow"
-"$PIP" install --quiet Pillow
+    echo -e "  → Pillow"
+    "$PIP" install --quiet Pillow
+fi
+
 echo -e "${GREEN}  ✓ Pillow $("$PIP" show Pillow | awk '/^Version/{print $2}')${NC}"
 
 # ── Passo 5: Verificar imports ────────────────────────────────────────────────
@@ -131,7 +139,8 @@ echo -e "${BOLD}[5/7] Verificando imports no venv...${NC}"
 ALL_OK=true
 check_import() {
     local mod="$1"
-    if "$PY" -c "import $mod" 2>/dev/null; then
+    local test="${2:-import $1}"
+    if "$PY" -c "$test" 2>/dev/null; then
         echo -e "${GREEN}  ✓ $mod OK${NC}"
     else
         echo -e "${RED}  ✗ $mod FALHOU${NC}"
@@ -143,7 +152,8 @@ check_import tkinter
 check_import serial
 check_import numpy
 check_import cv2
-check_import PIL
+# Testa ImageTk explicitamente, pois e o componente que falhou no Pillow do sistema
+check_import "PIL (ImageTk)" "from PIL import Image, ImageTk"
 
 if [ "$ALL_OK" = false ]; then
     echo ""
