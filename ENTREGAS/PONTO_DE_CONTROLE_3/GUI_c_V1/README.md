@@ -9,30 +9,10 @@ com o firmware STM32G070 que governa a esteira separadora via UART.
 
 | Componente | Detalhe |
 |---|---|
-| Raspberry Pi 3B | UART primária habilitada (`/dev/ttyAMA0`) |
+| Raspberry Pi 3B | UART primária em `/dev/ttyS0` |
 | STM32G070 | Conectado aos pinos GPIO 14 (TX) e 15 (RX) do RPi |
 | Câmera USB | Compatível com V4L2, índice 0 = `/dev/video0` |
 | Nível lógico | STM32 opera em 3,3 V — mesmo nível do RPi, sem conversor |
-
-> **Atenção:** Desabilite o console serial do RPi antes de usar.
-> Caso contrário o Linux usará `/dev/ttyAMA0` como TTY e o programa
-> receberá lixo na UART.
-
----
-
-## Configuração da UART no Raspberry Pi
-
-1. Execute `sudo raspi-config`
-2. Acesse **Interface Options → Serial Port**
-3. Responda **Não** para "login shell over serial"
-4. Responda **Sim** para "serial port hardware enabled"
-5. Reinicie o RPi
-
-Verifique que o dispositivo existe:
-
-```bash
-ls -l /dev/ttyAMA0
-```
 
 ---
 
@@ -66,7 +46,7 @@ make clean
 ```
 ./esteira [opções]
 
-  -p <porta>    Porta serial     (padrão: /dev/ttyAMA0)
+  -p <porta>    Porta serial     (padrão: /dev/ttyS0)
   -b <baud>     Baud rate        (padrão: 115200)
   -c <índice>   Índice da câmera (padrão: 0)
   -t <ms>       Timeout QR em ms (padrão: 30000 | 0 = sem limite)
