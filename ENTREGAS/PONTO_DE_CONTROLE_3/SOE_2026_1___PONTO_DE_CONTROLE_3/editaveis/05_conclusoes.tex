@@ -1,0 +1,9 @@
+\section{Conclusões}\label{sec:conclusoes}
+
+Este trabalho apresentou o projeto e a implementação de um sistema embarcado para controle de uma esteira automatizada de separação de itens. O problema abordado — separação automática de objetos de pequeno porte com base na leitura de um código QR — foi estruturado em uma arquitetura de processamento distribuído, dividindo as responsabilidades entre o microcontrolador STM32G070 (controle em tempo real) e o Raspberry Pi 3B (processamento de alto nível).
+
+Os resultados experimentais demonstram que todos os subsistemas fundamentais encontram-se funcionando e integrados: o protocolo UART proprietário opera sem erros de enquadramento; os quatro sensores laser detectam objetos de forma confiável; o motor de passo, o servo motor e a luminária respondem corretamente aos comandos da interface gráfica; e a câmera decodifica os códigos QR com sucesso nas condições testadas. O fluxo completo de classificação automática foi validado experimentalmente no protótipo físico da esteira.
+
+Como aprendizados relevantes do projeto, destacam-se: (i) a importância da detecção síncrona por ausência de portadora para robustez dos sensores contra ruído; (ii) a eficácia da comunicação baseada em quadros com byte de início (\texttt{0xAA}) para sincronização do receptor sem \textit{polling}; e (iii) o valor do modo de depuração assíncrono para a validação incremental de cada atuador durante o desenvolvimento.
+
+Como trabalhos futuros, destacam-se o refinamento do \textit{firmware} e do \textit{software} em C/C++, a melhoria do algoritmo de leitura de QR sob diferentes condições de iluminação, e a expansão do sistema para múltiplos módulos de esteira interconectados, seguindo a arquitetura modular proposta.
