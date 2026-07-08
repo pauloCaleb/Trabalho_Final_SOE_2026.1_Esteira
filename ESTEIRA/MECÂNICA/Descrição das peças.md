@@ -77,6 +77,16 @@ Lateral direita com alojamento para encaixe de uma chapa de PVC que forma a ramp
 
 ---
 
+
+### `Suporte_display_botoes_SOE.catPART`
+**Quantidade:** 1 unidade
+
+Suporte para o display LCD e os botões START e STOP.
+
+---
+
+
+
 ## Peças do Subsistema de Sensoriamento, Atuação e Eletrônica
 *Autor: Felipe de Castro*
 

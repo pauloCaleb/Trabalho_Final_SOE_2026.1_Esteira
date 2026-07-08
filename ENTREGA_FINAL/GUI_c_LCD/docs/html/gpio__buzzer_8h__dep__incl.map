@@ -1,0 +1,7 @@
+<map id="gpio_buzzer.h" name="gpio_buzzer.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="56,5,158,32"/>
+<area shape="rect" id="Node000002" href="$gpio__buzzer_8c.html" title=" " alt="" coords="5,80,108,107"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="92,44,67,81,63,78,87,46"/>
+<area shape="rect" id="Node000003" href="$hmi_8c.html" title=" " alt="" coords="131,80,184,107"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="126,42,152,80,146,79,123,47"/>
+</map>

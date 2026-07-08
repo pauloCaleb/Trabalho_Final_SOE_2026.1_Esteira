@@ -1,0 +1,17 @@
+<map id="protocol.c" name="protocol.c">
+<area shape="rect" id="Node000001" title=" " alt="" coords="133,5,212,32"/>
+<area shape="rect" id="Node000002" href="$protocol_8h.html" title=" " alt="" coords="5,80,84,107"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="149,35,82,74,79,70,152,30"/>
+<area shape="rect" id="Node000004" href="$serial_8h.html" title=" " alt="" coords="181,80,244,107"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="180,30,201,67,196,66,179,35"/>
+<area shape="rect" id="Node000006" href="$log_8h.html" title=" " alt="" coords="108,80,157,107"/>
+<area shape="poly" id="edge6_Node000001_Node000006" title=" " alt="" coords="167,31,149,68,145,65,164,34"/>
+<area shape="rect" id="Node000007" title=" " alt="" coords="268,80,333,107"/>
+<area shape="poly" id="edge8_Node000001_Node000007" title=" " alt="" coords="195,30,268,71,262,73,194,35"/>
+<area shape="rect" id="Node000003" title=" " alt="" coords="95,155,159,181"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="60,105,104,143,99,145,58,110"/>
+<area shape="poly" id="edge4_Node000004_Node000003" title=" " alt="" coords="200,106,155,147,152,142,195,108"/>
+<area shape="rect" id="Node000005" title=" " alt="" coords="184,155,252,181"/>
+<area shape="poly" id="edge5_Node000004_Node000005" title=" " alt="" coords="215,105,218,140,213,138,212,109"/>
+<area shape="poly" id="edge7_Node000006_Node000003" title=" " alt="" coords="133,105,132,140,127,138,130,109"/>
+</map>

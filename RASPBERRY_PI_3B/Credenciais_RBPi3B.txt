@@ -1,3 +1,0 @@
-IP local: 192.168.1.45
-user: caleb
-pswrd: 1234

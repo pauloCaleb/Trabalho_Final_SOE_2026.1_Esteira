@@ -1,0 +1,7 @@
+<map id="lcd2004_i2c.h" name="lcd2004_i2c.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="32,5,133,32"/>
+<area shape="rect" id="Node000002" href="$hmi_8c.html" title=" " alt="" coords="5,80,59,107"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="68,44,43,81,39,78,63,45"/>
+<area shape="rect" id="Node000003" href="$lcd2004__i2c_8c.html" title=" " alt="" coords="83,80,184,107"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="101,42,127,80,122,80,99,47"/>
+</map>

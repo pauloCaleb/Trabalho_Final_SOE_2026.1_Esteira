@@ -1,0 +1,25 @@
+var files_dup =
+[
+    [ "app_signal.h", "app__signal_8h.html", "app__signal_8h" ],
+    [ "camera.cpp", "camera_8cpp.html", "camera_8cpp" ],
+    [ "camera.h", "camera_8h.html", "camera_8h" ],
+    [ "debug.c", "debug_8c.html", "debug_8c" ],
+    [ "debug.h", "debug_8h.html", "debug_8h" ],
+    [ "fsm.c", "fsm_8c.html", "fsm_8c" ],
+    [ "fsm.h", "fsm_8h.html", "fsm_8h" ],
+    [ "gpio_button.c", "gpio__button_8c.html", "gpio__button_8c" ],
+    [ "gpio_button.h", "gpio__button_8h.html", "gpio__button_8h" ],
+    [ "gpio_buzzer.c", "gpio__buzzer_8c.html", "gpio__buzzer_8c" ],
+    [ "gpio_buzzer.h", "gpio__buzzer_8h.html", "gpio__buzzer_8h" ],
+    [ "hmi.c", "hmi_8c.html", "hmi_8c" ],
+    [ "hmi.h", "hmi_8h.html", "hmi_8h" ],
+    [ "lcd2004_i2c.c", "lcd2004__i2c_8c.html", "lcd2004__i2c_8c" ],
+    [ "lcd2004_i2c.h", "lcd2004__i2c_8h.html", "lcd2004__i2c_8h" ],
+    [ "log.c", "log_8c.html", "log_8c" ],
+    [ "log.h", "log_8h.html", "log_8h" ],
+    [ "main.c", "main_8c.html", "main_8c" ],
+    [ "protocol.c", "protocol_8c.html", "protocol_8c" ],
+    [ "protocol.h", "protocol_8h.html", "protocol_8h" ],
+    [ "serial.c", "serial_8c.html", "serial_8c" ],
+    [ "serial.h", "serial_8h.html", "serial_8h" ]
+];

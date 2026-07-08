@@ -1,0 +1,25 @@
+<map id="log.h" name="log.h">
+<area shape="rect" id="Node000001" title=" " alt="" coords="541,5,591,32"/>
+<area shape="rect" id="Node000002" href="$camera_8cpp.html" title=" " alt="" coords="5,80,95,107"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="523,25,345,48,108,83,96,85,94,80,107,77,344,43,529,24"/>
+<area shape="rect" id="Node000003" href="$debug_8c.html" title=" " alt="" coords="119,80,186,107"/>
+<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="523,26,382,50,200,83,187,85,186,80,199,77,381,44,528,25"/>
+<area shape="rect" id="Node000004" href="$fsm_8c.html" title=" " alt="" coords="211,80,265,107"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="528,27,414,52,279,83,266,86,265,81,277,77,413,47,523,28"/>
+<area shape="rect" id="Node000005" href="$gpio__button_8c.html" title=" " alt="" coords="290,80,389,107"/>
+<area shape="poly" id="edge4_Node000001_Node000005" title=" " alt="" coords="529,32,380,82,378,77,524,33"/>
+<area shape="rect" id="Node000006" href="$gpio__buzzer_8c.html" title=" " alt="" coords="414,80,516,107"/>
+<area shape="poly" id="edge5_Node000001_Node000006" title=" " alt="" coords="539,41,483,82,481,77,533,42"/>
+<area shape="rect" id="Node000007" href="$hmi_8c.html" title=" " alt="" coords="539,80,593,107"/>
+<area shape="poly" id="edge6_Node000001_Node000007" title=" " alt="" coords="568,46,568,81,564,78,564,50"/>
+<area shape="rect" id="Node000008" href="$lcd2004__i2c_8c.html" title=" " alt="" coords="617,80,718,107"/>
+<area shape="poly" id="edge7_Node000001_Node000008" title=" " alt="" coords="597,39,652,80,647,79,595,44"/>
+<area shape="rect" id="Node000009" href="$log_8c.html" title=" " alt="" coords="743,80,792,107"/>
+<area shape="poly" id="edge8_Node000001_Node000009" title=" " alt="" coords="606,32,745,83,740,83,605,37"/>
+<area shape="rect" id="Node000010" href="$main_8c.html" title=" " alt="" coords="816,80,876,107"/>
+<area shape="poly" id="edge9_Node000001_Node000010" title=" " alt="" coords="606,27,805,77,818,83,813,83,804,83,606,32"/>
+<area shape="rect" id="Node000011" href="$protocol_8c.html" title=" " alt="" coords="900,80,978,107"/>
+<area shape="poly" id="edge10_Node000001_Node000011" title=" " alt="" coords="606,24,889,77,902,83,897,82,888,83,606,29"/>
+<area shape="rect" id="Node000012" href="$serial_8c.html" title=" " alt="" coords="1002,80,1066,107"/>
+<area shape="poly" id="edge11_Node000001_Node000012" title=" " alt="" coords="606,21,774,41,882,58,991,77,1005,83,999,82,989,83,881,63,774,47,606,27"/>
+</map>
